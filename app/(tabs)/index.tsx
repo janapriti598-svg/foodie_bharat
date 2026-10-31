@@ -1,98 +1,295 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+} from 'react-native';
+import { Header } from '../../components/Header';
+import { StoryBar } from '../../components/StoryBar';
+import { IndiaMap } from '../../components/IndiaMap';
+import { FoodCard } from '../../components/FoodCard';
+import { FestivalBanner } from '../../components/FestivalBanner';
+import {
+  ALL_FEATURED_FOODS,
+  ALL_CATEGORIES,
+  ALL_FESTIVALS,
+  ALL_OFFERS,
+} from '../../data/localIndiaData';
+import { useFoodieStore } from '../../store/useFoodieStore';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
+  const {
+    selectedCategory,
+    setSelectedCategory,
+    vegOnlyFilter,
+    searchQuery,
+    t
+  } = useFoodieStore();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  // Filter foods by category, veg toggle, and search
+  const filteredFoods = ALL_FEATURED_FOODS.filter((food) => {
+    if (vegOnlyFilter && !food.veg) return false;
+    if (selectedCategory !== 'all') {
+      if (selectedCategory === 'veg' && !food.veg) return false;
+      if (selectedCategory === 'non-veg' && food.veg) return false;
+      const catKey = selectedCategory.replace('-', ' ');
+      if (!food.category.toLowerCase().includes(catKey)) return false;
+    }
+    if (searchQuery.trim().length > 0) {
+      const q = searchQuery.toLowerCase();
+      const matchName = food.name.toLowerCase().includes(q);
+      const matchState = food.state.toLowerCase().includes(q);
+      const matchCity = food.city.toLowerCase().includes(q);
+      const matchIng = food.ingredients.some((i) => i.toLowerCase().includes(q));
+      if (!matchName && !matchState && !matchCity && !matchIng) return false;
+    }
+    return true;
+  });
+
+  const streetFoods = filteredFoods.filter((f) => f.category === 'Street Food');
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <Header />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Instagram-style Stories Bar */}
+        <StoryBar />
+
+        {/* 3D / 2.5D Interactive India Map */}
+        <IndiaMap />
+
+        {/* Quick Food Categories */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>🍽️ Food Categories</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScroll}
+        >
+          {ALL_CATEGORIES.map((cat) => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                activeOpacity={0.8}
+                onPress={() => setSelectedCategory(cat.id)}
+                style={[
+                  styles.categoryCard,
+                  isSelected && styles.categoryCardSelected
+                ]}
+              >
+                <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    isSelected && styles.categoryTextSelected
+                  ]}
+                >
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Festival Showcase Banner */}
+        {ALL_FESTIVALS.length > 0 && (
+          <View style={styles.festivalSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>✨ {t('festivalSpecials')}</Text>
+              <TouchableOpacity onPress={() => router.push('/festivals' as any)}>
+                <Text style={styles.viewAllText}>{t('viewAll')} →</Text>
+              </TouchableOpacity>
+            </View>
+            <FestivalBanner festival={ALL_FESTIVALS[0]} />
+          </View>
+        )}
+
+        {/* Trending Delicacies */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>🔥 {t('trendingDishes')}</Text>
+          <TouchableOpacity onPress={() => router.push('/explore')}>
+            <Text style={styles.viewAllText}>{t('viewAll')} ({filteredFoods.length}) →</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.foodCardsScroll}
+        >
+          {filteredFoods.map((food) => (
+            <FoodCard key={food.id} food={food} layout="vertical" />
+          ))}
+        </ScrollView>
+
+        {/* Special Offer Promotional Card */}
+        {ALL_OFFERS.length > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push('/offers' as any)}
+            style={styles.offerCard}
+          >
+            <View style={styles.offerTag}>
+              <Text style={styles.offerTagText}>🎉 {ALL_OFFERS[0].discount}</Text>
+            </View>
+            <Text style={styles.offerTitle}>{ALL_OFFERS[0].title}</Text>
+            <Text style={styles.offerDesc}>{ALL_OFFERS[0].description}</Text>
+            <View style={styles.couponRow}>
+              <Text style={styles.couponCode}>Use Code: {ALL_OFFERS[0].code}</Text>
+              <Text style={styles.claimText}>Claim Deal →</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Street Food Gems */}
+        {streetFoods.length > 0 && (
+          <View style={styles.streetFoodSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🍢 {t('streetFoodGems')}</Text>
+            </View>
+            <View style={styles.verticalList}>
+              {streetFoods.slice(0, 3).map((food) => (
+                <FoodCard key={food.id} food={food} layout="horizontal" />
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 18,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1F2937',
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E65100',
+  },
+  categoryScroll: {
+    paddingHorizontal: 16,
+    gap: 10,
+    paddingBottom: 4,
+  },
+  categoryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 6,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  categoryCardSelected: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  categoryIcon: {
+    fontSize: 16,
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  categoryTextSelected: {
+    color: '#B45309',
+  },
+  festivalSection: {
+    marginTop: 6,
+  },
+  foodCardsScroll: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  offerCard: {
+    marginHorizontal: 16,
+    marginTop: 18,
+    backgroundColor: '#FFFBEB',
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+    borderStyle: 'dashed',
+  },
+  offerTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E65100',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  offerTagText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  offerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  offerDesc: {
+    fontSize: 12,
+    color: '#B45309',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  couponRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  couponCode: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#D97706',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  claimText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E65100',
+  },
+  streetFoodSection: {
+    marginTop: 6,
+  },
+  verticalList: {
+    paddingHorizontal: 16,
   },
 });
